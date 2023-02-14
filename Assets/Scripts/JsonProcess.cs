@@ -5,6 +5,8 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Newtonsoft.Json;
+using Unity.VisualScripting;
 
 public class JsonProcess : MonoBehaviour
 {
@@ -22,10 +24,23 @@ public class JsonProcess : MonoBehaviour
             Debug.Log($"MP {data._mp}");
             Debug.Log($"AttackPower {data._attackPower}");
         }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            TestDataSave();
+        }
+
+        if (Input.GetKeyDown(KeyCode.M))
+        {
+            var testData = TestDataLoad();
+            Debug.Log($"list {testData._boolList[8]}");
+            Debug.Log($"array {testData._boolArray[8]}");
+        }
     }
 
     /// <summary>データを保存 </summary>
-    void Save(bool flag)
+    /// <param name="encrypto">暗号化するか</param>
+    void Save(bool encrypto)
     {
         Debug.Log("保存");
         var path = Application.persistentDataPath + "PlayData.json";
@@ -33,7 +48,7 @@ public class JsonProcess : MonoBehaviour
         var json = JsonUtility.ToJson(data);
 
 
-        if (flag)
+        if (encrypto)
         {
             var jsonByte = Encoding.UTF8.GetBytes(json);
             jsonByte = AesEncrypt(jsonByte);
@@ -44,6 +59,24 @@ public class JsonProcess : MonoBehaviour
         {
             File.WriteAllText(path, json);
         }
+    }
+
+    void TestDataSave()
+    {
+        var data = new TestData(10);
+        var path = Application.dataPath + "TestData.json";
+
+        var json = JsonConvert.SerializeObject(data);
+
+        File.WriteAllText(path, json);
+    }
+
+    TestData TestDataLoad()
+    {
+        var path = Application.dataPath + "TestData.json";
+        var json = File.ReadAllText(path);
+
+        return JsonConvert.DeserializeObject<TestData>(json);
     }
 
     /// <summary>データを保存する </summary>
@@ -61,7 +94,7 @@ public class JsonProcess : MonoBehaviour
         Debug.Log("読み込み");
         var path = Application.persistentDataPath + "PlayData.json";
         var byteData = File.ReadAllBytes(path);
-        byteData = AesDecrypt(byteData);
+        byteData = AesDecrypt(byteData); //復号化
 
         var json = Encoding.UTF8.GetString(byteData);
         // var json = File.ReadAllText(path);
@@ -69,9 +102,7 @@ public class JsonProcess : MonoBehaviour
         return JsonUtility.FromJson<Data>(json);
     }
 
-    /// <summary>
-    /// AES暗号化
-    /// </summary>
+    /// <summary> AES暗号化 </summary>
     byte[] AesEncrypt(byte[] byteText)
     {
         // AES設定値　aesIv・aesKeyは暗号化と複合化で同じものを使用する
@@ -144,5 +175,23 @@ public class Data
         _hp = hp;
         _mp = mp;
         _attackPower = attackPower;
+    }
+}
+
+public class TestData
+{
+    public List<bool> _boolList;
+
+    public bool[] _boolArray;
+
+    public TestData(int lenght)
+    {
+        _boolList = new List<bool>();
+        _boolArray = new bool[lenght];
+
+        for (var i = 0; i < lenght; i++)
+        {
+            _boolList.Add(false);
+        }
     }
 }
