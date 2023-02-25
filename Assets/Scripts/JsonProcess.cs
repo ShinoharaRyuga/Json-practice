@@ -8,6 +8,36 @@ using System.Text;
 using Newtonsoft.Json;
 using Unity.VisualScripting;
 
+public interface IAwaiter<T> // 結果を受け取る側のためのインターフェイス
+{
+    /// <summary>
+    /// 処理が終了したかどうか。
+    /// </summary>
+    bool IsCompleted { get; }
+
+    /// <summary>
+    /// 処理の結果。
+    /// </summary>
+    T Result { get; }
+}
+
+public class Awaiter<T> : IAwaiter<T> // 結果を設定する側の実装
+{
+    public bool IsCompleted { get; private set; }
+
+    public T Result { get; private set; }
+
+    /// <summary>
+    /// 処理を終了して結果を設定する。
+    /// </summary>
+    public void SetResult(T result)
+    {
+        Result = result;
+        IsCompleted = true;
+    }
+}
+
+
 public class JsonProcess : MonoBehaviour
 {
     private void Update()
@@ -33,6 +63,8 @@ public class JsonProcess : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.M))
         {
             var testData = TestDataLoad();
+            Debug.Log(testData._boolArray.Length);
+            Debug.Log(testData._boolList.Count);
             Debug.Log($"list {testData._boolList[8]}");
             Debug.Log($"array {testData._boolArray[8]}");
         }
@@ -64,19 +96,19 @@ public class JsonProcess : MonoBehaviour
     void TestDataSave()
     {
         var data = new TestData(10);
-        var path = Application.dataPath + "TestData.json";
+        var path = Application.dataPath + "/TestData.json";
 
-        var json = JsonConvert.SerializeObject(data);
+        var json = JsonUtility.ToJson(data);
 
         File.WriteAllText(path, json);
     }
 
     TestData TestDataLoad()
     {
-        var path = Application.dataPath + "TestData.json";
+        var path = Application.dataPath + "/TestData.json";
         var json = File.ReadAllText(path);
 
-        return JsonConvert.DeserializeObject<TestData>(json);
+        return JsonUtility.FromJson<TestData>(json);
     }
 
     /// <summary>データを保存する </summary>
@@ -161,6 +193,31 @@ public class JsonProcess : MonoBehaviour
         return aes;
     }
 
+    public static IEnumerator EnumeratorTest<T>(string savePath, out IAwaiter<T> awaiter)
+    {
+        var impl = new Awaiter<T>();
+        var e = EnumeratorTest(savePath, impl);
+        awaiter = impl;
+        return e;
+    }
+
+    static IEnumerator EnumeratorTest<T>(string savePath, Awaiter<T> awaiter)
+    {
+        var json = File.ReadAllText(savePath);
+        awaiter.SetResult(JsonConvert.DeserializeObject<T>(json));
+
+        yield return null;
+    }
+
+
+    /// <summary>テストデータを読む込む </summary>
+    /// <param name="savePath">保存先のパス</param>
+    public static T TestLoadData<T>(string savePath)
+    {
+        var json = File.ReadAllText(savePath);
+
+        return JsonConvert.DeserializeObject<T>(json);
+    }
 }
 
 [SerializeField]
@@ -178,6 +235,7 @@ public class Data
     }
 }
 
+[Serializable]
 public class TestData
 {
     public List<bool> _boolList;
